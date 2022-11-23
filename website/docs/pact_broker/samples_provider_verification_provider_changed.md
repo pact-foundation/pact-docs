@@ -1,71 +1,102 @@
 ---
-title: Consumer Version Selectors
+title: Verification - Provider change 
+description: Provider verification tasks performed on provider commits
 ---
 
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-## Overview
+## Provider verification tasks performed on provider commits
 
-Consumer version selectors are the (new) way to configure which pacts the provider verifies. Instead of providing a list of tag names (as in the past) a list of selector objects is provided. These allow a much more flexible and powerful approach to specifying which pacts to verify.
+## Branches 
 
-## Properties
+### Configuring the branch when publishing pacts
 
-A consumer version selector has the following properties:
+<Tabs
+  groupId="sdk-choice"
+  defaultValue="pact-cli"
+  values={[
+    { label: 'Pact CLI', value: 'pact-cli', },
+    { label: 'Ruby', value: 'ruby' }
+  ]
+}>
+  <TabItem value="pact-cli">
 
-- `mainBranch`: if the key is specified, can only be set to `true`. Return the pacts for the configured `mainBranch` of each consumer. Use of this selector requires that the consumer has configured the `mainBranch` property, and has set a branch name when publishing the pacts. As of October 2021, this is not yet supported in all Pact client libraries.
+  See [here](/pact_broker/client_cli/readme#publish) for full docs.
 
-- `branch`: the branch name of the consumer versions to get the pacts for. Use of this selector requires that the consumer has configured a branch name when publishing the pacts. As of October 2021, this is not yet supported in all Pact client libraries. As of October 2021, this is not yet supported in all Pact client libraries.
+  ```
+  pact-broker publish ./pacts --consumer-app-version $GIT_COMMIT --branch $GIT_BRANCH
 
-- `fallbackBranch`: the name of the branch to fallback to if the specified `branch` does not exist. Use of this property is discouraged as it may allow a pact to pass on a feature branch while breaking backwards compatibility with the main branch, which is generally not desired. It is better to use two separate consumer version selectors, one with the main branch name, and one with the feature branch name, rather than use this property. As of October 2021, this is not yet supported in all Pact client libraries.
+  # or 
 
-- `tag`: the tag name(s) of the consumer versions to get the pacts for. *This field is still supported but it is recommended to use the `branch` in preference now.*
+  pact-broker publish ./pacts --auto-detect-version-properties
+  ```
 
-- `fallbackTag`: the name of the tag to fallback to if the specified `tag` does not exist. *This field is still supported but it is recommended to use the `fallbackBranch` in preference now.*
+  </TabItem>
+  <TabItem value="ruby">
 
-- `deployed`: if the key is specified, can only be set to `true`. Returns the pacts for all versions of the consumer that are currently deployed to any environment. Use of this selector requires that the deployment of the consumer application is recorded in the Pact Broker using the `pact-broker record-deployment` CLI. As of October 2021, this is not yet supported in all Pact client libraries.
+  See [here](/implementation_guides/ruby/publishing_pacts) for full docs.
 
-- `released`: if the key is specified, can only be set to `true`. Returns the pacts for all versions of the consumer that are released and currently supported in any environment. Use of this selector requires that the deployment of the consumer application is recorded in the Pact Broker using the `pact-broker record-release` CLI. As of October 2021, this is not yet supported in all Pact client libraries.
+  ```ruby
+  # In Gemfile
 
-- `deployedOrReleased`: if the key is specified, can only be set to `true`. Returns the pacts for all versions of the consumer that are currently deployed or released and currently supported in any environment. Use of this selector requires that the deployment of the consumer application is recorded in the Pact Broker using the `pact-broker record-deployment` or `record-release` CLI. As of October 2021, this is not yet supported in all Pact client libraries.
+  gem "pact_broker-client"
+  
+  # In Rakefile
 
-- `environment`: the name of the environment containing the consumer versions for which to return the pacts. Used to further qualify `{ "deployed": true }` or `{ "released": true }`. Normally, this would not be needed, as it is recommended to verify the pacts for all currently deployed/currently supported released versions. As of October 2021, this is not yet supported in all Pact client libraries.
+  require "pact_broker/client/tasks"
 
-- `latest`: true. Used in conjuction with the `tag` property. If a `tag` is specified, and `latest` is `true`, then the latest pact for each of the consumers with that tag will be returned. If a `tag` is specified and the latest flag is *not* set to `true`, *all* the pacts with the specified tag will be returned. (This might seem a bit weird, but it's done this way to match the syntax used for the matrix query params. See <https://docs.pact.io/selectors>).
+  PactBroker::Client::PublicationTask.new do | task |
+    task.consumer_version = ENV["GIT_COMMIT"]
+    task.branch = ENV["GIT_BRANCH"]
+  end  
+  ```
 
-- `consumer`: allows a selector to only be applied to a certain consumer. Can be specified with any of the above properties.
+  </TabItem>
+</Tabs>
 
-## Examples
+### Configuring the branch when publishing verification results
 
-### Recommended
 
-These are the recommended selectors that will cover the majority of workflows.
+<Tabs
+  groupId="sdk-choice"
+  defaultValue="pact-cli"
+  values={[
+    { label: 'Ruby provider-verifier CLI', value: 'pact-cli', },
+    { label: 'Ruby', value: 'ruby' }
+  ]
+}>
+  <TabItem value="pact-cli">
 
-- `{ "mainBranch": true }` - the latest version from the main branch of each consumer, as specified by the consumer's `mainBranch` property.
-- `{ "branch": "<branch>" }` - the latest version from a particular branch of each consumer.
-- `{ "deployedOrReleased": true }` - all the currently deployed and currently released and supported versions of each consumer.
-- `{ "matchingBranch": true` } - the latest version from any branch of the consumer that has the same name as the current branch of the provider. Used for coordinated development between consumer and provider teams using matching feature branch names.
+  See [here](https://github.com/pact-foundation/pact-provider-verifier) for full docs.
 
-### Advanced
+  ```  
+  pact-provider-verifier  \
+    --provider "Example API" \
+    --provider-app-version $GIT_COMMIT \
+    --provider-version-branch $GIT_BRANCH \
+    ...
+  ```
+    
+  </TabItem>
+  <TabItem value="ruby">
 
-This is not an exhaustive list, but shows most of the usecases.
+  See [here](/implementation_guides/ruby/verifying_pacts) for full docs.
 
-- `{ "branch": "<branch>", consumer: "<consumer>" }` - the latest version from a particular branch of a particular consumer.
-- `{ "branch": "<branch>", "fallbackBranch": "<branch>" }` - the latest version from a particular branch of the consumer, falling back to the fallbackBranch if none is found from the specified branch.
-- `{ "deployed": true, environment: "<environment>" }` - any versions currently deployed to the specified environment
-- `{ "released": true, environment: "<environment>" }` - any versions currently released and supported in the specified environment
-- `{ "environment": "<environment>" }` - any versions currently deployed or released and supported in the specified environment
-- `{ "tag": "<tag>" }`- all versions with the specified tag
-- `{ "tag": "<tag>", "latest": true }`- the latest version for each consumer with the specified tag
-- `{ "tag": "<tag>", "latest": true, "fallbackTag": "<tag>" }`- the latest version for each consumer with the specified tag, falling back to the fallbackTag if non is found with the specified tag.
-- `{ "tag": "<tag>", "latest": true, "consumer": "<consumer>" }`- the latest version for a specified consumer with the specified tag
-- `{ "latest": true }` - the latest version for each consumer. NOT RECOMMENDED as it suffers from race conditions when pacts are published from multiple branches.
+  ```ruby
+  # In spec/pact_helper.rb
 
-## Deduplication
+  Pact.service_provider "My Service Provider" do
+    app_version ENV["GIT_COMMIT"]
+    app_version_branch ENV["GIT_BRANCH"]
+  end
+  ```
 
-The Pact Broker API for retrieving pacts by selectors deduplicates the pacts based on their *content*. This means that if the same content was published in multiple selected pacts, the verification for that content will only need to run once. This is quite common when there hasn't been a change to a pact for a while, and the same pact content is present in development, test and production pacts.
+  </TabItem>
+</Tabs>
 
-## Docs
+
+## Consumer version selectors
 
 You can checkout code-snippets below, but here are some links to either documentation, or source code, from the respective languages, around their use of consumer version selectors. Ideally all languages should support raw json version selectors, to allow for extensiblity in the future.
 
@@ -88,7 +119,7 @@ You can checkout code-snippets below, but here are some links to either document
   - <https://github.com/pact-foundation/pact-go/blob/2.x.x/docs/provider.md#selecting-pacts-to-verify>
   - <https://github.com/pact-foundation/pact-go/blob/master/types/consumer_version_selector.go>
 
-## Code examples with branches
+## Consumer version selectors - Code examples with branches
 
 ### Verifying the latest development, test and master pacts
 
@@ -915,7 +946,7 @@ verifier = Verifier(
 
 </Tabs>
 
-## Code examples with tags
+## Consumer version selectors - Code examples with tags
 
 ### Verifying the latest development, test and master pacts
 
@@ -1623,4 +1654,162 @@ verifier = Verifier(
 
   </TabItem>
 
+</Tabs>
+
+
+
+
+
+## Verifying pacts
+### Examples
+
+<Tabs
+  groupId="sdk-choice"
+  defaultValue="javascript"
+  values={[
+    { label: 'Javascript', value: 'javascript', },
+    {label: 'Ruby', value: 'ruby', }
+  ]
+}>
+  <TabItem value="javascript">
+
+  Using branches and environments
+
+  ```js
+  const verificationOptions = {
+    // ....
+    provider: "example-provider",
+    pactBrokerUrl: "http://test.pactflow.io",
+    consumerVersionSelectors: [
+      {
+        mainBranch: true
+      },
+      {
+        matchingBranch: true
+      },
+      {
+        deployedOrReleased: true
+      }
+    ],
+    enablePending: true,
+    ...(process.env.GIT_BRANCH === "main"
+  ? {
+      includeWipPactsSince: "2020-01-01",
+    }
+  : {})
+
+    // used when publishing verification results
+    publishVerificationResult: process.env.CI === "true", //only publish from CI
+    providerVersion: process.env.GIT_COMMIT, //use the appropriate env var from your CI system
+    providerVersionBranch: process.env.GIT_BRANCH,  //use the appropriate env var from your CI system
+  }
+  ```
+
+  Using tags (this approach is now superseded by branches and environments)
+
+  ```js
+  const verificationOptions = {
+    // ....
+    provider: "example-provider",
+    pactBrokerUrl: "http://test.pactflow.io",
+    consumerVersionSelectors: [
+      {
+        tag: "main",
+        latest: true
+      },
+      {
+        tag: process.env.GIT_BRANCH,
+        latest: true
+      },
+      {
+        tag: "test",
+        latest: true
+      },
+      {
+        tag: "production",
+        latest: true
+      }
+    ],
+    enablePending: true,
+    includeWipPactsSince: process.env.GIT_BRANCH === "main" ? "2020-01-01" : undefined,
+
+    // used when publishing verification results
+    publishVerificationResult: process.env.CI === "true", //only publish from CI
+    providerVersion: process.env.GIT_COMMIT, //use the appropriate env var from your CI system
+    providerVersionTags: process.env.GIT_BRANCH ? [process.env.GIT_BRANCH] : [],
+  }
+  ```
+
+  </TabItem>
+
+  <TabItem value="ruby">
+
+  Using branches and environments
+
+  ```ruby
+    # The git commands are just for local testing, not needed for real CI
+    provider_version = ENV['GIT_COMMIT'] || `git rev-parse --verify HEAD`.strip
+    provider_branch = ENV['GIT_BRANCH'] || `git name-rev --name-only HEAD`.strip
+    publish_results = ENV['CI'] == 'true' # results should only be published from CI
+    # choose the appropriate credentials for your broker
+    credentials = {
+      username: ENV['PACT_BROKER_USERNAME'],
+      password: ENV['PACT_BROKER_PASSWORD'],
+      token: ENV['PACT_BROKER_TOKEN']
+    }.compact
+
+    Pact.service_provider "example-provider" do
+      app_version provider_version
+      app_version_branch provider_branch
+      publish_verification_results publish_results
+      
+      honours_pacts_from_pact_broker do
+        pact_broker_base_url 'http://test.pactflow.io', credentials
+
+        consumer_version_selectors [
+            { main_branch: true },
+            { matching_branch: true },
+            { deployed_or_released: true }
+        ]
+        enable_pending true
+        include_wip_pacts_since provider_branch == "main" ? "2020-01-01" : nil
+      end
+    end
+  ```
+
+  Using tags (this approach is now superseded by branches and environments)
+
+  ```ruby
+    # The git commands are just for local testing, not needed for real CI
+    provider_version = ENV['GIT_COMMIT'] || `git rev-parse --verify HEAD`.strip
+    provider_branch = ENV['GIT_BRANCH'] || `git name-rev --name-only HEAD`.strip
+    publish_results = ENV['CI'] == 'true' # results should only be published from CI
+    # choose the appropriate credentials for your broker
+    credentials = {
+      username: ENV['PACT_BROKER_USERNAME'],
+      password: ENV['PACT_BROKER_PASSWORD'],
+      token: ENV['PACT_BROKER_TOKEN']
+    }
+
+    Pact.service_provider "example-provider" do
+      app_version provider_version
+      app_version_tags [provider_branch]
+      publish_verification_results publish_results
+      
+      honours_pacts_from_pact_broker do
+        pact_broker_base_url 'http://test.pactflow.io', credentials
+
+        consumer_version_selectors [
+            { tag: 'main', latest: true },
+            { tag: provider_branch, latest: true },
+            { tag: 'test', latest: true },
+            { tag: 'production', latest: true }
+        ]
+        enable_pending true
+        include_wip_pacts_since provider_branch == "main" ? "2020-01-01" : nil
+      end
+    end
+  ```
+
+  </TabItem>
 </Tabs>
