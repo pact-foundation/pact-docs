@@ -24,7 +24,8 @@ V2 only matching rules are found in the export `Matchers` of the `@pact-foundati
 
 Often times, you find yourself having to re-write regular expressions for common formats. We've created a number of them for you to save you the time:
 
-<details><summary>Matchers API</summary>
+<details>
+<summary>Matchers API</summary>
 
 | method                      | description                                                                                                                 |
 | --------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
